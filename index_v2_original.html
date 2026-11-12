@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IMTARAC · Señalización V2</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --bg:#f4f5f7; --card:#ffffff; --text:#1f2937; --muted:#6b7280;
+  --primary:#1e3a5f; --accent:#2563eb; --border:#e5e7eb;
+}
+*{box-sizing:border-box}
+body{margin:0;font:13.5px/1.45 'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text)}
+header{background:var(--primary);color:#fff;padding:11px 18px;display:flex;justify-content:space-between;align-items:center}
+header b{font-size:14.5px;font-weight:600;letter-spacing:.2px}
+header button{width:auto;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.35);padding:6px 13px;border-radius:6px;cursor:pointer;font-size:13px}
+header button:hover{background:rgba(255,255,255,.1)}
+main{display:grid;grid-template-columns:360px 1fr;height:calc(100vh - 48px)}
+aside{padding:12px;overflow:auto;background:var(--card);border-right:1px solid var(--border)}
+#map{height:100%}
+.card{padding:13px 14px;margin-bottom:10px;border:1px solid var(--border);border-radius:9px;background:var(--card)}
+.card b{display:block;margin-bottom:7px;font-size:12.5px;font-weight:600;color:var(--primary)}
+label{display:block;font-weight:600;font-size:10.5px;margin:7px 0 3px;color:var(--muted);text-transform:uppercase;letter-spacing:.35px}
+input,select,textarea,button{width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);font:inherit;background:#fff;color:var(--text)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+button{cursor:pointer;font-weight:600;background:var(--accent);color:#fff;border:none;margin-top:5px}
+button:hover{filter:brightness(1.07)}
+.row{display:flex;gap:6px}.row button{flex:1}
+.muted{font-size:11px;color:var(--muted);margin-top:3px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat{padding:9px 6px;background:#f8fafc;border-radius:7px;text-align:center}
+.stat b{display:block;font-size:18px;color:var(--primary);font-weight:700}
+#login{position:fixed;inset:0;background:var(--primary);z-index:9999;display:flex;align-items:center;justify-content:center}
+.login{background:#fff;padding:26px;border-radius:12px;width:310px;box-shadow:0 25px 50px rgba(0,0,0,.18)}
+.login h2{margin:0 0 2px;color:var(--primary);font-size:20px}
+@media(max-width:800px){main{display:flex;flex-direction:column;height:auto}#map{height:48vh;order:1}aside{order:2}}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login">
+    <h2>IMTARAC</h2>
+    <p style="margin:0 0 16px;color:#6b7280">Sistema de Señalización Vial V2</p>
+    <label>Usuario</label>
+    <input id="u" value="admin">
+    <label>Contraseña</label>
+    <input id="p" type="password" value="imtarac2026">
+    <button onclick="entrar()">INGRESAR</button>
+    <p class="muted">Demo: admin / imtarac2026</p>
+  </div>
+</div>
+
+<header>
+  <b>IMTARAC · Gestión de Señalización V2</b>
+  <button onclick="salir()">Salir</button>
+</header>
+
+<main>
+<aside>
+  <div class="card">
+    <b>Resumen</b>
+    <div class="stats">
+      <div class="stat"><b id="total">0</b>Total</div>
+      <div class="stat"><b id="ej">0</b>Ejecutadas</div>
+      <div class="stat"><b id="pe">0</b>Pendientes</div>
+      <div class="stat"><b id="re">0</b>Retiradas</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <b>Nueva intervención</b>
+    <form id="f">
+      <label>Tipo</label>
+      <select id="tipo">
+        <option>Instalación</option><option>Retiro</option><option>Mantenimiento</option>
+        <option>Reposición</option><option>Demarcación horizontal</option>
+        <option>Reductor de velocidad</option><option>Otro</option>
+      </select>
+      <label>Elemento</label>
+      <select id="el">
+        <option>SR-30</option><option>SP-25</option><option>SP-25A</option>
+        <option>SR-01</option><option>SR-02</option><option>SR-04</option>
+        <option>SP-29</option><option>SP-47</option><option>Reductor</option>
+        <option>Línea de eje</option><option>Línea de borde</option>
+        <option>Cebra</option><option>PARE demarcado</option>
+        <option>Zona de estacionamiento</option><option>Otro</option>
+      </select>
+      <label>Estado</label>
+      <select id="estado">
+        <option>Programada</option><option>En ejecución</option>
+        <option selected>Ejecutada</option><option>Pendiente</option><option>Retirada</option>
+      </select>
+      <label>Fuente de ubicación</label>
+      <select id="fuente">
+        <option>GPS en campo</option><option>Google Earth</option>
+        <option>Google Maps</option><option>KML/KMZ</option>
+        <option>Levantamiento topográfico</option><option>Ingreso manual</option>
+      </select>
+      <label>Latitud</label>
+      <input id="lat" type="number" step="any" placeholder="10.5912345">
+      <label>Longitud</label>
+      <input id="lng" type="number" step="any" placeholder="-74.1876543">
+      <div class="row">
+        <button type="button" onclick="gps()">📍 GPS</button>
+        <button type="button" onclick="mapPick()">🎯 Mapa</button>
+      </div>
+      <button type="button" onclick="ubicar()">📌 UBICAR COORDENADAS</button>
+      <p id="cs" class="muted">Puedes registrar desde la oficina con coordenadas de Google Earth.</p>
+      <label>Dirección</label>
+      <input id="dir">
+      <label>Barrio/sector</label>
+      <input id="bar">
+      <label>Fecha</label>
+      <input id="fecha" type="date">
+      <label>Foto antes</label>
+      <input id="antes" type="file" accept="image/*" capture="environment">
+      <label>Foto durante</label>
+      <input id="durante" type="file" accept="image/*" capture="environment">
+      <label>Foto después</label>
+      <input id="despues" type="file" accept="image/*" capture="environment">
+      <label>Observaciones</label>
+      <textarea id="obs"></textarea>
+      <button>💾 GUARDAR</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <b>Importar KML</b>
+    <input id="kml" type="file" accept=".kml">
+    <button onclick="importKml()">IMPORTAR PUNTOS KML</button>
+    <p class="muted">KMZ en próxima versión</p>
+  </div>
+
+  <div class="card">
+    <b>Buscar / filtrar</b>
+    <input id="q" placeholder="SR-30, Calle 8, Centro" oninput="render()">
+    <select id="fs" onchange="render()">
+      <option value="">Todos los estados</option>
+      <option>Programada</option><option>En ejecución</option>
+      <option>Ejecutada</option><option>Pendiente</option><option>Retirada</option>
+    </select>
+    <button onclick="csv()">⬇️ EXPORTAR CSV</button>
+  </div>
+
+  <div class="card">
+    <b>Últimos registros</b>
+    <div id="list"></div>
+  </div>
+</aside>
+
+<section>
+  <div id="map"></div>
+</section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const KEY = 'imtarac_v2';
+let map, layer, pick = false, temp;
+const AR = [10.5919, -74.1881];
+const C = {
+  Ejecutada: '#039855', Pendiente: '#f79009', Programada: '#7f56d9',
+  'En ejecución': '#2563eb', Retirada: '#d92d20'
+};
+const D = () => JSON.parse(localStorage.getItem(KEY) || '[]');
+const S = x => localStorage.setItem(KEY, JSON.stringify(x));
+
+function entrar() {
+  if (u.value === 'admin' && p.value === 'imtarac2026') {
+    sessionStorage.auth = 1;
+    login.style.display = 'none';
+  } else {
+    alert('Usuario: admin | Contraseña: imtarac2026');
+  }
+}
+function salir() {
+  sessionStorage.removeItem('auth');
+  location.reload();
+}
+
+function init() {
+  map = L.map('map').setView(AR, 15);
+
+  // Tiles arreglados (ya no da 403)
+  const streets = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19,
+  attribution: 'Tiles © Esri'
+});
+const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19,
+  attribution: 'Tiles © Esri'
+});
+streets.addTo(map);
+L.control.layers({ 'Calles': streets, 'Satélite': satellite }).addTo(map);
+
+  layer = L.layerGroup().addTo(map);
+  map.on('click', e => {
+    if (pick) {
+      coords(e.latlng.lat, e.latlng.lng);
+      pick = false;
+    }
+  });
+  fecha.value = new Date().toISOString().slice(0, 10);
+  render();
+}
+
+function coords(a, b) {
+  lat.value = a.toFixed(7);
+  lng.value = b.toFixed(7);
+  cs.textContent = 'Coordenadas: ' + lat.value + ', ' + lng.value;
+  if (temp) map.removeLayer(temp);
+  temp = L.marker([a, b]).addTo(map).bindPopup('Punto seleccionado').openPopup();
+  map.setView([a, b], 18);
+}
+function ubicar() {
+  let a = +lat.value, b = +lng.value;
+  if (!isFinite(a) || !isFinite(b)) return alert('Coordenadas inválidas');
+  coords(a, b);
+}
+function mapPick() {
+  pick = true;
+  alert('Haz clic exactamente donde está la señal en el mapa.');
+}
+function gps() {
+  navigator.geolocation.getCurrentPosition(
+    x => {
+      fuente.value = 'GPS en campo';
+      coords(x.coords.latitude, x.coords.longitude);
+    },
+    e => alert(e.message),
+    { enableHighAccuracy: true, timeout: 15000 }
+  );
+}
+
+async function photo(f) {
+  if (!f) return '';
+  return new Promise(r => {
+    let x = new FileReader();
+    x.onload = () => r(x.result);
+    x.readAsDataURL(f);
+  });
+}
+
+f.onsubmit = async e => {
+  e.preventDefault();
+  let a = +lat.value, b = +lng.value;
+  if (!isFinite(a) || !isFinite(b)) return alert('Define la ubicación primero');
+  let x = {
+    id: 'INT-' + Date.now(),
+    tipo: tipo.value, elemento: el.value, estado: estado.value,
+    fuente: fuente.value, lat: a, lng: b,
+    dir: dir.value, bar: bar.value, fecha: fecha.value,
+    obs: obs.value,
+    antes: await photo(antes.files[0]),
+    durante: await photo(durante.files[0]),
+    despues: await photo(despues.files[0]),
+    creado: new Date().toISOString()
+  };
+  let d = D(); d.push(x); S(d);
+  alert('Guardado ' + x.id);
+  f.reset();
+  fecha.value = new Date().toISOString().slice(0, 10);
+  render();
+  map.setView([a, b], 18);
+};
+
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[m]));
+}
+
+function render() {
+  layer.clearLayers();
+  let qv = q.value.toLowerCase(), st = fs.value;
+  let filtered = D().filter(x => {
+  if (st && x.estado !== st) return false;
+  if (!qv) return true;
+  const texto = [x.elemento, x.dir, x.bar, x.obs, x.tipo, x.fuente, x.id].join(' ').toLowerCase();
+  return texto.includes(qv);
+});
+  filtered.forEach(x => {
+    let ic = L.divIcon({
+      className: '',
+      html: `<div style="width:16px;height:16px;border-radius:50%;background:${C[x.estado]||'#344054'};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
+      iconSize: [16, 16], iconAnchor: [8, 8]
+    });
+    let imgs = [x.antes, x.durante, x.despues].filter(Boolean)
+      .map(i => `<img src="${i}" style="max-width:100%;max-height:110px;margin:4px 0;border-radius:6px"><br>`).join('');
+    L.marker([x.lat, x.lng], { icon: ic }).addTo(layer)
+      .bindPopup(`<b>${esc(x.elemento)}</b><br>${esc(x.estado)}<br>
+        <b>Tipo:</b> ${esc(x.tipo)}<br><b>Fuente:</b> ${esc(x.fuente)}<br>
+        <b>Fecha:</b> ${esc(x.fecha)}<br><b>Coords:</b> ${x.lat}, ${x.lng}<br>
+        ${esc(x.dir)}<br>${esc(x.obs)}<br>${imgs}`);
+  });
+  let d = D();
+  total.textContent = d.length;
+  ej.textContent = d.filter(x => x.estado === 'Ejecutada').length;
+  pe.textContent = d.filter(x => x.estado === 'Pendiente' || x.estado === 'Programada').length;
+  re.textContent = d.filter(x => x.estado === 'Retirada' || x.tipo === 'Retiro').length;
+  list.innerHTML = d.slice(-10).reverse().map(x =>
+    `<p style="margin:8px 0;padding-bottom:8px;border-bottom:1px solid #eee">
+      <b>${esc(x.elemento)}</b> · ${esc(x.estado)}<br>
+      <span class="muted">${esc(x.dir)}</span>
+      <button style="width:auto;margin-top:4px;padding:4px 10px;font-size:12px" onclick="map.setView([${x.lat},${x.lng}],18)">Ver</button>
+    </p>`
+  ).join('');
+}
+
+function csv() {
+  let d = D();
+  let h = ['ID','Tipo','Elemento','Estado','Fuente','Fecha','Dirección','Barrio','Latitud','Longitud','Observaciones'];
+  let r = d.map(x => [
+    x.id, x.tipo, x.elemento, x.estado, x.fuente, x.fecha,
+    x.dir, x.bar,
+    Number(x.lat).toFixed(7),   // fuerza 7 decimales
+    Number(x.lng).toFixed(7),   // fuerza 7 decimales
+    x.obs
+  ]);
+  let t = [h, ...r].map(a => a.map(v => '"' + String(v || '').replaceAll('"', '""') + '"').join(';')).join('\n');
+  let a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + t], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'IMTARAC_Senalizacion_V2.csv';
+  a.click();
+}
+
+async function importKml() {
+  let file = kml.files[0];
+  if (!file) return alert('Selecciona un KML');
+  let xml = new DOMParser().parseFromString(await file.text(), 'text/xml');
+  let d = D(), n = 0, bounds = [];
+  [...xml.getElementsByTagName('Placemark')].forEach((p, i) => {
+    let co = p.getElementsByTagName('coordinates')[0]?.textContent.trim();
+    if (!co) return;
+    let [b, a] = co.split(',').map(Number);
+    if (!isFinite(a) || !isFinite(b)) return;
+    let name = p.getElementsByTagName('name')[0]?.textContent || 'Punto KML';
+    let desc = p.getElementsByTagName('description')[0]?.textContent || '';
+    d.push({
+      id: 'KML-' + Date.now() + '-' + i,
+      tipo: 'Importación KML', elemento: name, estado: 'Ejecutada',
+      fuente: 'KML/KMZ', lat: a, lng: b, dir: '', bar: '',
+      fecha: new Date().toISOString().slice(0, 10),
+      obs: desc || 'Importado desde KML',
+      creado: new Date().toISOString()
+    });
+    bounds.push([a, b]);
+    n++;
+  });
+  S(d);
+  render();
+  if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
+  alert('Importados ' + n + ' puntos');
+}
+
+window.onload = () => {
+  if (sessionStorage.auth) login.style.display = 'none';
+  init();
+};
+</script>
+</body>
+</html>

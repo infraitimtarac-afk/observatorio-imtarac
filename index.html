@@ -1,0 +1,985 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>IMTARAC · Observatorio V3</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --bg:#f0f2f5; --card:#ffffff; --text:#1f2937; --muted:#6b7280;
+  --primary:#1e3a5f; --accent:#2563eb; --border:#e5e7eb;
+  --green:#039855; --orange:#f79009; --red:#d92d20; --purple:#7f56d9;
+}
+*{box-sizing:border-box}
+body{margin:0;font:13.5px/1.45 'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text)}
+header{background:var(--primary);color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+header b{font-size:14px;font-weight:600}
+header .hdr-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+header button, .btn-ghost{
+  width:auto;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.35);
+  padding:5px 11px;border-radius:6px;cursor:pointer;font-size:12.5px;font-weight:600
+}
+header button:hover,.btn-ghost:hover{background:rgba(255,255,255,.12)}
+main{display:grid;grid-template-columns:380px 1fr;height:calc(100vh - 46px)}
+aside{padding:10px;overflow:auto;background:var(--card);border-right:1px solid var(--border)}
+#map{height:100%;min-height:280px}
+.card{padding:12px 13px;margin-bottom:9px;border:1px solid var(--border);border-radius:9px;background:var(--card)}
+.card > b{display:block;margin-bottom:6px;font-size:12.5px;font-weight:600;color:var(--primary)}
+label{display:block;font-weight:600;font-size:10.5px;margin:6px 0 3px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+input,select,textarea,button{width:100%;padding:7px 9px;border-radius:6px;border:1px solid var(--border);font:inherit;background:#fff;color:var(--text)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+button{cursor:pointer;font-weight:600;background:var(--accent);color:#fff;border:none;margin-top:4px}
+button:hover{filter:brightness(1.06)}
+button.secondary{background:#64748b}
+button.danger{background:var(--red)}
+button.success{background:var(--green)}
+button.sm{width:auto;padding:5px 10px;font-size:12px;margin-top:0}
+.row{display:flex;gap:5px}.row > *{flex:1}
+.muted{font-size:11px;color:var(--muted);margin-top:2px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.stat{padding:8px 5px;background:#f8fafc;border-radius:7px;text-align:center}
+.stat b{display:block;font-size:17px;color:var(--primary);font-weight:700}
+.tabs{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.tab{
+  flex:1;min-width:70px;padding:7px 6px;text-align:center;border-radius:7px;border:1px solid var(--border);
+  background:#f8fafc;cursor:pointer;font-weight:600;font-size:12px;color:var(--muted)
+}
+.tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.panel{display:none}.panel.active{display:block}
+.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;margin:4px 0}
+.check-grid label{display:flex;align-items:center;gap:5px;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500;color:var(--text);margin:0;cursor:pointer}
+.check-grid input{width:auto;margin:0}
+#login{position:fixed;inset:0;background:var(--primary);z-index:9999;display:flex;align-items:center;justify-content:center}
+.login{background:#fff;padding:24px;border-radius:12px;width:320px;max-width:92vw;box-shadow:0 25px 50px rgba(0,0,0,.2)}
+.login h2{margin:0 0 2px;color:var(--primary);font-size:20px}
+.badge{display:inline-block;padding:2px 7px;border-radius:99px;font-size:10.5px;font-weight:700;color:#fff}
+.badge.ok{background:var(--green)}.badge.warn{background:var(--orange)}.badge.err{background:var(--red)}.badge.info{background:var(--accent)}
+.layer-toggles{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.layer-toggles label{display:flex;align-items:center;gap:4px;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500;color:var(--text);margin:0;cursor:pointer}
+.layer-toggles input{width:auto}
+.list-item{margin:6px 0;padding-bottom:7px;border-bottom:1px solid #eee}
+.list-item button{width:auto;margin-top:3px;padding:3px 9px;font-size:11.5px}
+.firebase-status{font-size:11px;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,.15)}
+.ref-block{border:1px dashed var(--border);border-radius:8px;padding:8px;margin:6px 0;background:#fafbfc}
+.ref-block .ref-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.ref-block .ref-head span{font-size:11px;font-weight:600;color:var(--muted)}
+.ph{color:#9ca3af}
+@media(max-width:860px){
+  main{display:flex;flex-direction:column;height:auto}
+  #map{height:42vh;order:1}
+  aside{order:2;max-height:55vh}
+}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login">
+    <h2>IMTARAC</h2>
+    <p style="margin:0 0 14px;color:#6b7280">Observatorio Vial · V3</p>
+    <label>Correo / Usuario</label>
+    <input id="u" value="admin" autocomplete="username">
+    <label>Contraseña</label>
+    <input id="p" type="password" value="imtarac2026" autocomplete="current-password">
+    <button onclick="entrar()">INGRESAR</button>
+    <p class="muted" style="margin-top:10px">
+      Demo local: <b>admin / imtarac2026</b><br>
+      Con Firebase Auth: usa el correo que crees en Authentication.
+    </p>
+  </div>
+</div>
+
+<header>
+  <b>IMTARAC · Observatorio V3</b>
+  <div class="hdr-actions">
+    <span id="fbStatus" class="firebase-status">…</span>
+    <button onclick="salir()">Salir</button>
+  </div>
+</header>
+
+<main>
+<aside>
+  <div class="card">
+    <b>Resumen</b>
+    <div class="stats">
+      <div class="stat"><b id="totalInt">0</b>Intervenciones</div>
+      <div class="stat"><b id="totalHal">0</b>Hallazgos</div>
+      <div class="stat"><b id="totalSin">0</b>Siniestros</div>
+      <div class="stat"><b id="totalPe">0</b>Pendientes</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <b>Capas del mapa</b>
+    <div class="layer-toggles">
+      <label><input type="checkbox" id="lyInt" checked onchange="toggleLayers()"> Señalización</label>
+      <label><input type="checkbox" id="lyHal" checked onchange="toggleLayers()"> Hallazgos</label>
+      <label><input type="checkbox" id="lySin" checked onchange="toggleLayers()"> Siniestros</label>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <button type="button" class="secondary" onclick="soloSiniestros()">Solo siniestros</button>
+      <button type="button" class="secondary" onclick="todasCapas()">Todas</button>
+    </div>
+    <p class="muted">“Solo siniestros” oculta el resto para enfocarte en accidentes.</p>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="int" onclick="switchTab('int')">Señalización</div>
+    <div class="tab" data-tab="hal" onclick="switchTab('hal')">Hallazgos</div>
+    <div class="tab" data-tab="sin" onclick="switchTab('sin')">Siniestros</div>
+  </div>
+
+  <!-- ========== INTERVENCIONES ========== -->
+  <div id="panel-int" class="panel active">
+    <div class="card">
+      <b>Nueva intervención</b>
+      <form id="fInt">
+        <label>Tipo</label>
+        <select id="tipo" onchange="toggleOtro('tipo')">
+          <option>Instalación</option><option>Retiro</option><option>Mantenimiento</option>
+          <option>Reposición</option><option>Demarcación horizontal</option>
+          <option>Reductor de velocidad</option><option>Otro</option>
+        </select>
+        <div id="tipoOtroWrap" style="display:none">
+          <label>Especificar tipo</label>
+          <input id="tipoOtro" placeholder="Escribe el tipo de intervención">
+        </div>
+
+        <label>Elemento</label>
+        <select id="el" onchange="toggleOtro('el')">
+          <option>SR-30</option><option>SP-25</option><option>SP-25A</option>
+          <option>SR-01</option><option>SR-02</option><option>SR-04</option>
+          <option>SP-29</option><option>SP-47</option><option>Reductor</option>
+          <option>Línea de eje</option><option>Línea de borde</option>
+          <option>Cebra</option><option>PARE demarcado</option>
+          <option>Zona de estacionamiento</option><option>Otro</option>
+        </select>
+        <div id="elOtroWrap" style="display:none">
+          <label>Especificar elemento</label>
+          <input id="elOtro" placeholder="Escribe el elemento / señal">
+        </div>
+
+        <label>Estado</label>
+        <select id="estado">
+          <option>Programada</option><option>En ejecución</option>
+          <option selected>Ejecutada</option><option>Pendiente</option><option>Retirada</option>
+        </select>
+        <label>Fuente de ubicación</label>
+        <select id="fuente">
+          <option>GPS en campo</option><option>Google Earth</option>
+          <option>Google Maps</option><option>KML/KMZ</option>
+          <option>Levantamiento topográfico</option><option>Ingreso manual</option>
+        </select>
+        <label>Latitud</label>
+        <input id="lat" type="number" step="any" placeholder="10.5912345">
+        <label>Longitud</label>
+        <input id="lng" type="number" step="any" placeholder="-74.1876543">
+        <div class="row">
+          <button type="button" onclick="gps('int')">📍 GPS</button>
+          <button type="button" onclick="mapPick('int')">🎯 Mapa</button>
+        </div>
+        <button type="button" onclick="ubicar('int')">📌 UBICAR</button>
+        <p id="csInt" class="muted">Define ubicación por GPS, clic en mapa o coordenadas.</p>
+        <label>Dirección</label>
+        <input id="dir">
+        <label>Barrio/sector</label>
+        <input id="bar">
+        <label>Fecha</label>
+        <input id="fecha" type="date">
+        <label>Foto antes</label>
+        <input id="antes" type="file" accept="image/*" capture="environment">
+        <label>Foto durante</label>
+        <input id="durante" type="file" accept="image/*" capture="environment">
+        <label>Foto después</label>
+        <input id="despues" type="file" accept="image/*" capture="environment">
+        <label>Observaciones / notas libres</label>
+        <textarea id="obs" rows="3" placeholder="Cualquier detalle adicional..."></textarea>
+        <button type="submit">💾 GUARDAR INTERVENCIÓN</button>
+      </form>
+    </div>
+    <div class="card">
+      <b>Importar KML (señales)</b>
+      <input id="kml" type="file" accept=".kml">
+      <button type="button" onclick="importKml()">IMPORTAR KML</button>
+    </div>
+  </div>
+
+  <!-- ========== HALLAZGOS ========== -->
+  <div id="panel-hal" class="panel">
+    <div class="card">
+      <b>Nuevo hallazgo / inspección de vía</b>
+      <form id="fHal">
+        <label>Ancho de calzada (metros)</label>
+        <input id="ancho" type="number" step="0.1" min="0" placeholder="Ej: 7.5">
+
+        <label>Referencias cercanas</label>
+        <p class="muted" style="margin:0 0 4px">Ejemplos: Hospital Luisa Santiago, Indevit, Camellón, Universidad…</p>
+        <div id="refsContainer"></div>
+        <button type="button" class="secondary sm" onclick="addRef()" style="margin-top:6px">+ Agregar otra referencia</button>
+
+        <label>Hallazgos de pavimento / vía</label>
+        <div class="check-grid">
+          <label><input type="checkbox" name="defecto" value="Agrietamiento"> Agrietamiento</label>
+          <label><input type="checkbox" name="defecto" value="Baches"> Baches</label>
+          <label><input type="checkbox" name="defecto" value="Piel de cocodrilo"> Piel de cocodrilo</label>
+          <label><input type="checkbox" name="defecto" value="Endiduras"> Endiduras</label>
+          <label><input type="checkbox" name="defecto" value="Isocabación"> Isocabación</label>
+          <label><input type="checkbox" name="defecto" value="Desprendimiento de agregado"> Desprendimiento de agregado</label>
+          <label><input type="checkbox" name="defecto" value="Hundimiento"> Hundimiento</label>
+          <label><input type="checkbox" name="defecto" value="Desgaste"> Desgaste superficial</label>
+          <label><input type="checkbox" name="defecto" value="Falta de señalización"> Falta de señalización</label>
+          <label><input type="checkbox" name="defecto" value="Otro"> Otro</label>
+        </div>
+        <div id="defectoOtroWrap" style="display:none">
+          <label>Otro hallazgo</label>
+          <input id="defectoOtro" placeholder="Describe el hallazgo">
+        </div>
+
+        <label>Severidad</label>
+        <select id="severidad">
+          <option>Baja</option><option selected>Media</option><option>Alta</option><option>Crítica</option>
+        </select>
+
+        <label>Latitud</label>
+        <input id="latH" type="number" step="any" placeholder="10.5912345">
+        <label>Longitud</label>
+        <input id="lngH" type="number" step="any" placeholder="-74.1876543">
+        <div class="row">
+          <button type="button" onclick="gps('hal')">📍 GPS</button>
+          <button type="button" onclick="mapPick('hal')">🎯 Mapa</button>
+        </div>
+        <button type="button" onclick="ubicar('hal')">📌 UBICAR</button>
+        <p id="csHal" class="muted">Ubicación del hallazgo (aparece como puntito en el mapa).</p>
+
+        <label>Dirección / referencia vial</label>
+        <input id="dirH" placeholder="Calle, carrera, intersección…">
+        <label>Barrio/sector</label>
+        <input id="barH">
+        <label>Fecha</label>
+        <input id="fechaH" type="date">
+
+        <label>Fotos del hallazgo (puedes elegir varias)</label>
+        <input id="fotosHal" type="file" accept="image/*" capture="environment" multiple>
+
+        <label>Observaciones libres</label>
+        <textarea id="obsH" rows="3" placeholder="Notas, medidas, recomendaciones..."></textarea>
+        <button type="submit">💾 GUARDAR HALLAZGO</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========== SINIESTROS ========== -->
+  <div id="panel-sin" class="panel">
+    <div class="card">
+      <b>Nuevo siniestro vial</b>
+      <form id="fSin">
+        <label>Tipo de siniestro</label>
+        <select id="tipoSin">
+          <option>Daños materiales</option>
+          <option>Heridos</option>
+          <option>Daño grave</option>
+          <option>Muerte</option>
+          <option>Choque simple</option>
+          <option>Atropello</option>
+          <option>Volcamiento</option>
+          <option>Otro</option>
+        </select>
+        <div id="tipoSinOtroWrap" style="display:none">
+          <label>Especificar tipo</label>
+          <input id="tipoSinOtro" placeholder="Describe el tipo de siniestro">
+        </div>
+
+        <label>Gravedad</label>
+        <select id="gravedad">
+          <option>Solo daños materiales</option>
+          <option>Lesionados leves</option>
+          <option>Lesionados graves</option>
+          <option>Fatal</option>
+        </select>
+
+        <label>Número de lesionados (si aplica)</label>
+        <input id="nLesionados" type="number" min="0" value="0">
+        <label>Número de fallecidos (si aplica)</label>
+        <input id="nFallecidos" type="number" min="0" value="0">
+
+        <label>Latitud</label>
+        <input id="latS" type="number" step="any" placeholder="10.5912345">
+        <label>Longitud</label>
+        <input id="lngS" type="number" step="any" placeholder="-74.1876543">
+        <div class="row">
+          <button type="button" onclick="gps('sin')">📍 GPS</button>
+          <button type="button" onclick="mapPick('sin')">🎯 Mapa</button>
+        </div>
+        <button type="button" onclick="ubicar('sin')">📌 UBICAR</button>
+        <p id="csSin" class="muted">Ubicación exacta del siniestro.</p>
+
+        <label>Dirección donde ocurrió</label>
+        <input id="dirS" placeholder="Calle, carrera, intersección...">
+        <label>Barrio/sector</label>
+        <input id="barS">
+        <label>Fecha del siniestro</label>
+        <input id="fechaS" type="date">
+        <label>Hora (aprox.)</label>
+        <input id="horaS" type="time">
+
+        <label>Fotos / evidencia</label>
+        <input id="fotosSin" type="file" accept="image/*" capture="environment" multiple>
+
+        <label>Descripción / notas libres</label>
+        <textarea id="obsS" rows="3" placeholder="Detalles del hecho, vehículos involucrados, etc."></textarea>
+        <button type="submit">💾 GUARDAR SINIESTRO</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <b>Buscar / filtrar</b>
+    <input id="q" placeholder="Señal, calle, colegio, bache..." oninput="render()">
+    <select id="fs" onchange="render()">
+      <option value="">Todos los estados (intervenciones)</option>
+      <option>Programada</option><option>En ejecución</option>
+      <option>Ejecutada</option><option>Pendiente</option><option>Retirada</option>
+    </select>
+    <button type="button" onclick="csv()">⬇️ EXPORTAR CSV</button>
+  </div>
+
+  <div class="card">
+    <b>Últimos registros</b>
+    <div id="list"></div>
+  </div>
+</aside>
+
+<section>
+  <div id="map"></div>
+</section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+<script>
+/* =========================================================
+   FIREBASE – configurado con tu proyecto OBSERVATORIO-IMTARAC
+   Storage opcional (si no hay Blaze, las fotos van a local/Firestore)
+   ========================================================= */
+const USE_FIREBASE = true;
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAduXBKlO2j2HEhbXS86snva1uLYnUs4nM",
+  authDomain: "observatorio-imtarac.firebaseapp.com",
+  projectId: "observatorio-imtarac",
+  storageBucket: "observatorio-imtarac.firebasestorage.app",
+  messagingSenderId: "837164889800",
+  appId: "1:837164889800:web:21099f30185ba37f3a57fd",
+  measurementId: "G-LWRTW2DFW1"
+};
+
+let fbApp = null, fbAuth = null, fbDb = null, fbStorage = null;
+let firebaseReady = false;
+let storageReady = false;
+
+try {
+  if (USE_FIREBASE && firebaseConfig.apiKey) {
+    fbApp = firebase.initializeApp(firebaseConfig);
+    fbAuth = firebase.auth();
+    fbDb = firebase.firestore();
+    try {
+      fbStorage = firebase.storage();
+      storageReady = true;
+    } catch (e) {
+      console.warn('Storage no disponible (sin Blaze o no habilitado):', e);
+      storageReady = false;
+    }
+    firebaseReady = true;
+  }
+} catch (e) {
+  console.warn('Firebase no se pudo inicializar:', e);
+  firebaseReady = false;
+}
+
+const KEY_INT = 'imtarac_v3_int';
+const KEY_HAL = 'imtarac_v3_hal';
+const KEY_SIN = 'imtarac_v3_sin';
+const AR = [10.5919, -74.1881];
+
+let map, layerInt, layerHal, layerSin, pickMode = null, tempMarker = null;
+let refCount = 0;
+
+const C = {
+  Ejecutada: '#039855', Pendiente: '#f79009', Programada: '#7f56d9',
+  'En ejecución': '#2563eb', Retirada: '#d92d20'
+};
+const C_HAL = { Baja: '#039855', Media: '#f79009', Alta: '#f04438', Crítica: '#d92d20' };
+const C_SIN = {
+  'Daños materiales': '#64748b', Heridos: '#f79009', 'Daño grave': '#f04438',
+  Muerte: '#d92d20', 'Choque simple': '#2563eb', Atropello: '#7f56d9',
+  Volcamiento: '#b54708', Otro: '#344054'
+};
+
+/* ---------- Referencias cercanas (Hallazgos) ---------- */
+function addRef(data) {
+  refCount++;
+  const id = refCount;
+  const wrap = document.createElement('div');
+  wrap.className = 'ref-block';
+  wrap.dataset.refId = id;
+  wrap.innerHTML = `
+    <div class="ref-head">
+      <span>Referencia ${id}</span>
+      ${id > 1 ? `<button type="button" class="danger sm" onclick="this.closest('.ref-block').remove()">Quitar</button>` : ''}
+    </div>
+    <label>Nombre del lugar</label>
+    <input class="ref-nombre" placeholder="Ej: Hospital Luisa Santiago, Indevit, Camellón…" value="${data?.nombre || ''}">
+    <label>Horario de atención / funcionamiento</label>
+    <input class="ref-horario" placeholder="Ej: 6:00-12:00 y 14:00-17:30" value="${data?.horario || ''}">
+    <label>Tipo (opcional)</label>
+    <input class="ref-tipo" placeholder="Hospital, universidad, comercio, camellón…" value="${data?.tipo || ''}">
+  `;
+  document.getElementById('refsContainer').appendChild(wrap);
+}
+
+function getRefs() {
+  return [...document.querySelectorAll('#refsContainer .ref-block')].map(b => ({
+    nombre: b.querySelector('.ref-nombre').value.trim(),
+    horario: b.querySelector('.ref-horario').value.trim(),
+    tipo: b.querySelector('.ref-tipo').value.trim()
+  })).filter(r => r.nombre);
+}
+
+function clearRefs() {
+  refsContainer.innerHTML = '';
+  refCount = 0;
+  addRef(); // siempre una por defecto
+}
+
+/* ---------- Auth ---------- */
+function entrar() {
+  const email = u.value.trim();
+  const pass = p.value;
+
+  // Demo local siempre disponible
+  if (email === 'admin' && pass === 'imtarac2026') {
+    sessionStorage.auth = 1;
+    login.style.display = 'none';
+    updateFbStatus();
+    return;
+  }
+
+  if (firebaseReady && fbAuth) {
+    // Intentar login con correo Firebase
+    fbAuth.signInWithEmailAndPassword(email, pass)
+      .then(() => {
+        sessionStorage.auth = 1;
+        login.style.display = 'none';
+        updateFbStatus();
+      })
+      .catch(err => {
+        alert('Error de autenticación: ' + err.message +
+          '\n\nUsa un usuario creado en Authentication, o el demo local: admin / imtarac2026');
+      });
+  } else {
+    alert('Usuario demo: admin | Contraseña: imtarac2026');
+  }
+}
+
+function salir() {
+  if (firebaseReady && fbAuth) fbAuth.signOut().catch(() => {});
+  sessionStorage.removeItem('auth');
+  location.reload();
+}
+
+function updateFbStatus() {
+  const el = document.getElementById('fbStatus');
+  if (firebaseReady) {
+    el.textContent = storageReady ? 'Firebase ON + Storage' : 'Firebase ON (sin Storage)';
+    el.style.background = 'rgba(3,152,85,.35)';
+  } else {
+    el.textContent = 'LocalStorage';
+    el.style.background = 'rgba(255,255,255,.15)';
+  }
+}
+
+/* ---------- Storage helpers ---------- */
+function loadLocal(key) {
+  try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
+}
+function saveLocal(key, arr) {
+  localStorage.setItem(key, JSON.stringify(arr));
+}
+
+async function loadAll() {
+  if (firebaseReady && fbDb) {
+    try {
+      const [i, h, s] = await Promise.all([
+        fbDb.collection('intervenciones').get(),
+        fbDb.collection('hallazgos').get(),
+        fbDb.collection('siniestros').get()
+      ]);
+      return {
+        int: i.docs.map(d => ({ id: d.id, ...d.data() })),
+        hal: h.docs.map(d => ({ id: d.id, ...d.data() })),
+        sin: s.docs.map(d => ({ id: d.id, ...d.data() }))
+      };
+    } catch (e) {
+      console.warn('Firestore falló, uso local', e);
+    }
+  }
+  return {
+    int: loadLocal(KEY_INT),
+    hal: loadLocal(KEY_HAL),
+    sin: loadLocal(KEY_SIN)
+  };
+}
+
+async function saveItem(collection, item) {
+  if (firebaseReady && fbDb) {
+    try {
+      const ref = fbDb.collection(collection).doc();
+      const id = ref.id;
+      const data = { ...item, id };
+      // Evitar documentos enormes: si fotos son dataURL muy grandes, Firestore puede fallar
+      await ref.set(data);
+      const key = collection === 'intervenciones' ? KEY_INT : collection === 'hallazgos' ? KEY_HAL : KEY_SIN;
+      const arr = loadLocal(key).filter(x => x.id !== id);
+      arr.push(data);
+      saveLocal(key, arr);
+      return data;
+    } catch (e) {
+      console.warn('Error Firestore, guardo local', e);
+      alert('No se pudo guardar en la nube (¿reglas de Firestore?). Se guardó en este dispositivo.\n' + (e.message || ''));
+    }
+  }
+  const key = collection === 'intervenciones' ? KEY_INT : collection === 'hallazgos' ? KEY_HAL : KEY_SIN;
+  const arr = loadLocal(key);
+  arr.push(item);
+  saveLocal(key, arr);
+  return item;
+}
+
+async function uploadPhoto(file, pathPrefix) {
+  if (!file) return '';
+  // Comprimir un poco para no saturar localStorage/Firestore
+  const dataUrl = await compressImage(file, 1280, 0.72);
+  if (storageReady && fbStorage) {
+    try {
+      const name = pathPrefix + '/' + Date.now() + '_' + (file.name || 'foto.jpg').replace(/[^\w.-]/g, '_');
+      const ref = fbStorage.ref(name);
+      await ref.putString(dataUrl, 'data_url');
+      return await ref.getDownloadURL();
+    } catch (e) {
+      console.warn('Storage falló, uso dataURL local', e);
+      return dataUrl;
+    }
+  }
+  return dataUrl;
+}
+
+function compressImage(file, maxW, quality) {
+  return new Promise(resolve => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(fr.result);
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+async function uploadMany(files, prefix) {
+  if (!files || !files.length) return [];
+  const out = [];
+  for (const f of files) out.push(await uploadPhoto(f, prefix));
+  return out;
+}
+
+/* ---------- UI helpers ---------- */
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+}
+
+function toggleOtro(which) {
+  if (which === 'tipo') tipoOtroWrap.style.display = tipo.value === 'Otro' ? 'block' : 'none';
+  else if (which === 'el') elOtroWrap.style.display = el.value === 'Otro' ? 'block' : 'none';
+}
+
+document.querySelectorAll('input[name="defecto"]').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const otro = [...document.querySelectorAll('input[name="defecto"]')].find(x => x.value === 'Otro');
+    defectoOtroWrap.style.display = otro && otro.checked ? 'block' : 'none';
+  });
+});
+
+document.getElementById('tipoSin').addEventListener('change', () => {
+  tipoSinOtroWrap.style.display = tipoSin.value === 'Otro' ? 'block' : 'none';
+});
+
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[m]));
+}
+
+/* ---------- Mapa ---------- */
+function init() {
+  map = L.map('map').setView(AR, 15);
+  const streets = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: 'Tiles © Esri'
+  });
+  const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: 'Tiles © Esri'
+  });
+  streets.addTo(map);
+  L.control.layers({ 'Calles': streets, 'Satélite': satellite }).addTo(map);
+
+  layerInt = L.layerGroup().addTo(map);
+  layerHal = L.layerGroup().addTo(map);
+  layerSin = L.layerGroup().addTo(map);
+
+  map.on('click', e => {
+    if (!pickMode) return;
+    coords(pickMode, e.latlng.lat, e.latlng.lng);
+    pickMode = null;
+  });
+
+  const hoy = new Date().toISOString().slice(0, 10);
+  fecha.value = hoy;
+  fechaH.value = hoy;
+  fechaS.value = hoy;
+
+  clearRefs(); // una referencia por defecto
+  updateFbStatus();
+  render();
+}
+
+function coords(mode, a, b) {
+  const la = a.toFixed(7), lo = b.toFixed(7);
+  if (mode === 'int') {
+    lat.value = la; lng.value = lo;
+    csInt.textContent = 'Coords: ' + la + ', ' + lo;
+  } else if (mode === 'hal') {
+    latH.value = la; lngH.value = lo;
+    csHal.textContent = 'Coords: ' + la + ', ' + lo;
+  } else {
+    latS.value = la; lngS.value = lo;
+    csSin.textContent = 'Coords: ' + la + ', ' + lo;
+  }
+  if (tempMarker) map.removeLayer(tempMarker);
+  tempMarker = L.marker([a, b]).addTo(map).bindPopup('Punto seleccionado').openPopup();
+  map.setView([a, b], 18);
+}
+
+function ubicar(mode) {
+  let a, b;
+  if (mode === 'int') { a = +lat.value; b = +lng.value; }
+  else if (mode === 'hal') { a = +latH.value; b = +lngH.value; }
+  else { a = +latS.value; b = +lngS.value; }
+  if (!isFinite(a) || !isFinite(b)) return alert('Coordenadas inválidas');
+  coords(mode, a, b);
+}
+
+function mapPick(mode) {
+  pickMode = mode;
+  alert('Haz clic exactamente en el punto del mapa.');
+}
+
+function gps(mode) {
+  navigator.geolocation.getCurrentPosition(
+    x => {
+      if (mode === 'int') fuente.value = 'GPS en campo';
+      coords(mode, x.coords.latitude, x.coords.longitude);
+    },
+    e => alert('GPS: ' + e.message),
+    { enableHighAccuracy: true, timeout: 15000 }
+  );
+}
+
+function toggleLayers() {
+  if (lyInt.checked) map.addLayer(layerInt); else map.removeLayer(layerInt);
+  if (lyHal.checked) map.addLayer(layerHal); else map.removeLayer(layerHal);
+  if (lySin.checked) map.addLayer(layerSin); else map.removeLayer(layerSin);
+}
+
+function soloSiniestros() {
+  lyInt.checked = false; lyHal.checked = false; lySin.checked = true;
+  toggleLayers(); switchTab('sin');
+}
+function todasCapas() {
+  lyInt.checked = true; lyHal.checked = true; lySin.checked = true;
+  toggleLayers();
+}
+
+/* ---------- Guardar ---------- */
+fInt.onsubmit = async e => {
+  e.preventDefault();
+  const a = +lat.value, b = +lng.value;
+  if (!isFinite(a) || !isFinite(b)) return alert('Define la ubicación primero');
+
+  const tipoVal = tipo.value === 'Otro' ? (tipoOtro.value.trim() || 'Otro') : tipo.value;
+  const elVal = el.value === 'Otro' ? (elOtro.value.trim() || 'Otro') : el.value;
+
+  const item = {
+    id: 'INT-' + Date.now(),
+    tipo: tipoVal, elemento: elVal, estado: estado.value,
+    fuente: fuente.value, lat: a, lng: b,
+    dir: dir.value, bar: bar.value, fecha: fecha.value,
+    obs: obs.value,
+    antes: await uploadPhoto(antes.files[0], 'intervenciones'),
+    durante: await uploadPhoto(durante.files[0], 'intervenciones'),
+    despues: await uploadPhoto(despues.files[0], 'intervenciones'),
+    creado: new Date().toISOString(),
+    categoria: 'intervencion'
+  };
+  await saveItem('intervenciones', item);
+  alert('Guardado ' + item.id);
+  fInt.reset();
+  fecha.value = new Date().toISOString().slice(0, 10);
+  tipoOtroWrap.style.display = 'none';
+  elOtroWrap.style.display = 'none';
+  render();
+  map.setView([a, b], 18);
+};
+
+fHal.onsubmit = async e => {
+  e.preventDefault();
+  const a = +latH.value, b = +lngH.value;
+  if (!isFinite(a) || !isFinite(b)) return alert('Define la ubicación del hallazgo');
+
+  const defectos = [...document.querySelectorAll('input[name="defecto"]:checked')].map(x => x.value);
+  if (defectos.includes('Otro') && defectoOtro.value.trim()) {
+    defectos[defectos.indexOf('Otro')] = defectoOtro.value.trim();
+  }
+
+  const item = {
+    id: 'HAL-' + Date.now(),
+    anchoCalzada: ancho.value ? +ancho.value : null,
+    referencias: getRefs(),
+    defectos,
+    severidad: severidad.value,
+    lat: a, lng: b,
+    dir: dirH.value, bar: barH.value,
+    fecha: fechaH.value,
+    obs: obsH.value,
+    fotos: await uploadMany(fotosHal.files, 'hallazgos'),
+    creado: new Date().toISOString(),
+    categoria: 'hallazgo'
+  };
+  await saveItem('hallazgos', item);
+  alert('Hallazgo guardado. Verás un puntito en el mapa; tócalo para ver el detalle.');
+  fHal.reset();
+  fechaH.value = new Date().toISOString().slice(0, 10);
+  defectoOtroWrap.style.display = 'none';
+  clearRefs();
+  render();
+  map.setView([a, b], 18);
+};
+
+fSin.onsubmit = async e => {
+  e.preventDefault();
+  const a = +latS.value, b = +lngS.value;
+  if (!isFinite(a) || !isFinite(b)) return alert('Define la ubicación del siniestro');
+
+  const tipoVal = tipoSin.value === 'Otro' ? (tipoSinOtro.value.trim() || 'Otro') : tipoSin.value;
+
+  const item = {
+    id: 'SIN-' + Date.now(),
+    tipo: tipoVal, gravedad: gravedad.value,
+    nLesionados: +nLesionados.value || 0,
+    nFallecidos: +nFallecidos.value || 0,
+    lat: a, lng: b,
+    dir: dirS.value, bar: barS.value,
+    fecha: fechaS.value, hora: horaS.value,
+    obs: obsS.value,
+    fotos: await uploadMany(fotosSin.files, 'siniestros'),
+    creado: new Date().toISOString(),
+    categoria: 'siniestro'
+  };
+  await saveItem('siniestros', item);
+  alert('Siniestro guardado ' + item.id);
+  fSin.reset();
+  fechaS.value = new Date().toISOString().slice(0, 10);
+  tipoSinOtroWrap.style.display = 'none';
+  render();
+  map.setView([a, b], 18);
+};
+
+/* ---------- Render ---------- */
+async function render() {
+  const data = await loadAll();
+  const qv = (q.value || '').toLowerCase();
+  const st = fs.value;
+
+  layerInt.clearLayers();
+  layerHal.clearLayers();
+  layerSin.clearLayers();
+
+  // Intervenciones
+  data.int.filter(x => {
+    if (st && x.estado !== st) return false;
+    if (!qv) return true;
+    return [x.elemento, x.dir, x.bar, x.obs, x.tipo, x.fuente, x.id].join(' ').toLowerCase().includes(qv);
+  }).forEach(x => {
+    const ic = L.divIcon({
+      className: '',
+      html: `<div style="width:15px;height:15px;border-radius:50%;background:${C[x.estado]||'#344054'};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>`,
+      iconSize: [15, 15], iconAnchor: [7, 7]
+    });
+    const imgs = [x.antes, x.durante, x.despues].filter(Boolean)
+      .map(i => `<img src="${i}" style="max-width:100%;max-height:100px;margin:3px 0;border-radius:5px"><br>`).join('');
+    L.marker([x.lat, x.lng], { icon: ic }).addTo(layerInt)
+      .bindPopup(`<b>${esc(x.elemento)}</b> · ${esc(x.estado)}<br>
+        <b>Tipo:</b> ${esc(x.tipo)}<br>
+        <b>Fecha:</b> ${esc(x.fecha)}<br>
+        ${esc(x.dir)} ${esc(x.bar)}<br>
+        ${esc(x.obs)}<br>${imgs}`);
+  });
+
+  // Hallazgos – puntito clicable con toda la info
+  data.hal.filter(x => {
+    if (!qv) return true;
+    const refsTxt = (x.referencias || []).map(r => r.nombre + ' ' + r.horario).join(' ');
+    return [x.dir, x.bar, x.obs, (x.defectos || []).join(' '), refsTxt, x.id, x.severidad].join(' ').toLowerCase().includes(qv);
+  }).forEach(x => {
+    const color = C_HAL[x.severidad] || '#f79009';
+    const ic = L.divIcon({
+      className: '',
+      html: `<div style="width:16px;height:16px;border-radius:3px;background:${color};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.45)" title="Hallazgo"></div>`,
+      iconSize: [16, 16], iconAnchor: [8, 8]
+    });
+    const imgs = (x.fotos || []).map(i => `<img src="${i}" style="max-width:100%;max-height:90px;margin:3px 0;border-radius:5px"><br>`).join('');
+    const def = (x.defectos || []).join(', ') || '—';
+    let refsHtml = '';
+    if (x.referencias && x.referencias.length) {
+      refsHtml = '<b>Referencias cercanas:</b><br>' + x.referencias.map(r =>
+        `· ${esc(r.nombre)}${r.tipo ? ' (' + esc(r.tipo) + ')' : ''}${r.horario ? ' — ' + esc(r.horario) : ''}`
+      ).join('<br>') + '<br>';
+    }
+    L.marker([x.lat, x.lng], { icon: ic }).addTo(layerHal)
+      .bindPopup(`<div style="min-width:200px">
+        <b>Hallazgo · ${esc(x.severidad)}</b><br>
+        <b>Ancho calzada:</b> ${x.anchoCalzada != null ? x.anchoCalzada + ' m' : '—'}<br>
+        ${refsHtml}
+        <b>Defectos:</b> ${esc(def)}<br>
+        <b>Dirección:</b> ${esc(x.dir)} ${esc(x.bar)}<br>
+        <b>Fecha:</b> ${esc(x.fecha)}<br>
+        ${esc(x.obs)}<br>${imgs}
+      </div>`);
+  });
+
+  // Siniestros
+  data.sin.filter(x => {
+    if (!qv) return true;
+    return [x.tipo, x.gravedad, x.dir, x.bar, x.obs, x.id].join(' ').toLowerCase().includes(qv);
+  }).forEach(x => {
+    const color = C_SIN[x.tipo] || '#d92d20';
+    const ic = L.divIcon({
+      className: '',
+      html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid ${color};filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))"></div>`,
+      iconSize: [16, 14], iconAnchor: [8, 14]
+    });
+    const imgs = (x.fotos || []).map(i => `<img src="${i}" style="max-width:100%;max-height:90px;margin:3px 0;border-radius:5px"><br>`).join('');
+    L.marker([x.lat, x.lng], { icon: ic }).addTo(layerSin)
+      .bindPopup(`<b>Siniestro · ${esc(x.tipo)}</b><br>
+        <b>Gravedad:</b> ${esc(x.gravedad)}<br>
+        Lesionados: ${x.nLesionados || 0} · Fallecidos: ${x.nFallecidos || 0}<br>
+        <b>Fecha:</b> ${esc(x.fecha)} ${esc(x.hora || '')}<br>
+        <b>Dirección:</b> ${esc(x.dir)} ${esc(x.bar)}<br>
+        ${esc(x.obs)}<br>${imgs}`);
+  });
+
+  totalInt.textContent = data.int.length;
+  totalHal.textContent = data.hal.length;
+  totalSin.textContent = data.sin.length;
+  totalPe.textContent = data.int.filter(x => x.estado === 'Pendiente' || x.estado === 'Programada').length;
+
+  const recent = [
+    ...data.int.map(x => ({ ...x, _t: 'int', _label: x.elemento + ' · ' + x.estado })),
+    ...data.hal.map(x => ({ ...x, _t: 'hal', _label: 'Hallazgo · ' + ((x.defectos || []).slice(0, 2).join(', ') || x.severidad) })),
+    ...data.sin.map(x => ({ ...x, _t: 'sin', _label: 'Siniestro · ' + x.tipo }))
+  ].sort((a, b) => (b.creado || '').localeCompare(a.creado || '')).slice(0, 12);
+
+  list.innerHTML = recent.map(x => {
+    const badge = x._t === 'int' ? 'info' : x._t === 'hal' ? 'warn' : 'err';
+    const tipo = x._t === 'int' ? 'Señal' : x._t === 'hal' ? 'Hallazgo' : 'Siniestro';
+    return `<div class="list-item">
+      <span class="badge ${badge}">${tipo}</span>
+      <b>${esc(x._label)}</b><br>
+      <span class="muted">${esc(x.dir || x.fecha || '')}</span>
+      <button type="button" onclick="map.setView([${x.lat},${x.lng}],18)">Ver</button>
+    </div>`;
+  }).join('') || '<p class="muted">Sin registros aún.</p>';
+
+  toggleLayers();
+}
+
+/* ---------- CSV ---------- */
+async function csv() {
+  const data = await loadAll();
+  const rows = [['CATEGORIA','ID','TIPO/ELEMENTO','ESTADO/SEVERIDAD','FECHA','DIRECCION','BARRIO','LAT','LNG','DETALLE','OBSERVACIONES']];
+  data.int.forEach(x => rows.push(['Intervencion', x.id, x.elemento, x.estado, x.fecha, x.dir, x.bar, Number(x.lat).toFixed(7), Number(x.lng).toFixed(7), x.tipo, x.obs]));
+  data.hal.forEach(x => rows.push([
+    'Hallazgo', x.id, (x.defectos || []).join(' | '), x.severidad, x.fecha, x.dir, x.bar,
+    Number(x.lat).toFixed(7), Number(x.lng).toFixed(7),
+    (x.anchoCalzada != null ? 'Ancho:' + x.anchoCalzada + 'm; ' : '') + (x.referencias || []).map(r => r.nombre + (r.horario ? ' ' + r.horario : '')).join('; '),
+    x.obs
+  ]));
+  data.sin.forEach(x => rows.push([
+    'Siniestro', x.id, x.tipo, x.gravedad, x.fecha, x.dir, x.bar,
+    Number(x.lat).toFixed(7), Number(x.lng).toFixed(7),
+    'Les:' + (x.nLesionados || 0) + ' Fal:' + (x.nFallecidos || 0), x.obs
+  ]));
+  const t = rows.map(a => a.map(v => '"' + String(v || '').replaceAll('"', '""') + '"').join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + t], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'IMTARAC_Observatorio_V3.csv';
+  a.click();
+}
+
+async function importKml() {
+  const file = kml.files[0];
+  if (!file) return alert('Selecciona un KML');
+  const xml = new DOMParser().parseFromString(await file.text(), 'text/xml');
+  let n = 0, bounds = [];
+  for (const [i, p] of [...xml.getElementsByTagName('Placemark')].entries()) {
+    const co = p.getElementsByTagName('coordinates')[0]?.textContent.trim();
+    if (!co) continue;
+    const [b, a] = co.split(',').map(Number);
+    if (!isFinite(a) || !isFinite(b)) continue;
+    const name = p.getElementsByTagName('name')[0]?.textContent || 'Punto KML';
+    const desc = p.getElementsByTagName('description')[0]?.textContent || '';
+    await saveItem('intervenciones', {
+      id: 'KML-' + Date.now() + '-' + i,
+      tipo: 'Importación KML', elemento: name, estado: 'Ejecutada',
+      fuente: 'KML/KMZ', lat: a, lng: b, dir: '', bar: '',
+      fecha: new Date().toISOString().slice(0, 10),
+      obs: desc || 'Importado desde KML',
+      creado: new Date().toISOString(),
+      categoria: 'intervencion'
+    });
+    bounds.push([a, b]);
+    n++;
+  }
+  render();
+  if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
+  alert('Importados ' + n + ' puntos');
+}
+
+window.onload = () => {
+  if (sessionStorage.auth) login.style.display = 'none';
+  init();
+};
+</script>
+</body>
+</html>
